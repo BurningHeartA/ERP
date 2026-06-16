@@ -17,10 +17,25 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from django.conf import settings
+from django.conf.urls.static import static
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/', include('directories.api.urls')),
+    path('api/', include('employees.api.urls')),
+    path('api/', include('clients.api.urls')),
+    path('api/', include('orders.api.urls')),
+    path('api/', include('worklog.api.urls')),
+    path('api/', include('operations.api.urls')),
+    path('api/', include('warehouse.api.urls')),
+    path('api/', include('finance.api.urls')),
+    path('api/', include('files.api.urls')),
+    path('api/', include('reports.api.urls')),
+    path('api/', include('users.api.urls')),
 ]
+
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

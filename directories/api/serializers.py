@@ -1,10 +1,19 @@
 from rest_framework import serializers
-from directories.models import Position, WorkSchedule, Competence, WorkCategory, OperationType, ExpenseCategory, Product
+from directories.models import ( 
+    Position, WorkSchedule, Competence,
+    WorkCategory, OperationType, ExpenseCategory,
+    Product, Equipment, Material
+)
 
 class PositionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Position
         fields = '__all__'
+
+    def validate_name(self, value):
+        if value == 'Директор':
+            raise serializers.ValidationError('Нельзя создать вторую должность Директора')
+        return value
 
 class WorkScheduleSerializer(serializers.ModelSerializer):
     class Meta:
@@ -34,4 +43,15 @@ class ExpenseCategorySerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
+        fields = '__all__'
+
+class EquipmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Equipment
+        fields = '__all__'
+
+
+class MaterialSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Material
         fields = '__all__'
