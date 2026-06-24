@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from employees.models import Employee, EmployeeCompetence
 import transliterate
+from django.contrib.auth.models import User
+
 
 class EmployeeCompetenceSerializer(serializers.ModelSerializer):
     competence_name = serializers.CharField(source='competence.name', read_only=True)
@@ -8,7 +10,7 @@ class EmployeeCompetenceSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = EmployeeCompetence
-        fields = ['id', 'competence', 'competence_name', 'competence_coefficient']
+        fields = ['id', 'employee', 'competence', 'competence_name', 'competence_coefficient']
 
 
 class EmployeeSerializer(serializers.ModelSerializer):

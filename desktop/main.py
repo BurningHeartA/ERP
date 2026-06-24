@@ -16,6 +16,12 @@ from components.title_bar import CustomTitleBar
 from modules.dashboard import DashboardModule
 from modules.inventory import InventoryModule
 from modules.directories import DirectoriesModule
+from modules.clients import ClientsModule
+from modules.employees import EmployeesModule
+from modules.worklog import WorkLogModule
+from modules.warehouse import WarehouseModule
+from modules.operations import OperationsModule
+from modules.finance import FinanceModule
 
 
 # Константы Windows API для отслеживания границ окна
@@ -110,13 +116,18 @@ class ErpMainWindow(QMainWindow):
     def init_modules(self):
         navigation_items = [
             ("Главная", "fa5s.chart-pie", DashboardModule()),
+            # ("Клиенты", "fa5s.users", QWidget()),
+            ("Клиенты", "fa5s.users", ClientsModule(self.api_client)),
+            # ("Сотрудники", "fa5s.id-card", QWidget()),
+            ("Сотрудники", "fa5s.id-card", EmployeesModule(self.api_client)),
+            # ("Табель работ", "fa5s.calendar-check", QWidget()),
+            ("Табель работ", "fa5s.calendar-check", WorkLogModule(self.api_client)),
+            # ("Склад", "fa5s.boxes", QWidget()),
+            ("Склад", "fa5s.boxes", WarehouseModule(self.api_client)),
+            ("Операции", "fa5s.cogs", OperationsModule(self.api_client)),
+            # ("Финансы", "fa5s.ruble-sign", QWidget()),
+            ("Финансы", "fa5s.ruble-sign", FinanceModule(self.api_client)),
             ("Заказы", "fa5s.file-invoice", QWidget()),
-            ("Клиенты", "fa5s.users", QWidget()),
-            ("Сотрудники", "fa5s.id-card", QWidget()),
-            ("Табель", "fa5s.calendar-check", QWidget()),
-            ("Склад", "fa5s.boxes", QWidget()),
-            ("Финансы", "fa5s.ruble-sign", QWidget()),
-            ("Оборудование", "fa5s.cogs", QWidget()),
             ("Отчёты", "fa5s.chart-bar", QWidget()),
             ("Справочники", "fa5s.book", DirectoriesModule(self.api_client)),
         ]

@@ -3,6 +3,9 @@ from rest_framework.response import Response
 from django.contrib.auth.models import User
 from clients.models import Customer
 
+from rest_framework import viewsets
+from rest_framework import serializers
+
 
 class RegisterView(views.APIView):
     permission_classes = [permissions.AllowAny]
@@ -34,3 +37,15 @@ class RegisterView(views.APIView):
         UserProfile.objects.update_or_create(user=user)
 
         return Response({'message': 'Регистрация успешна'}, status=201)
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_active']
+
+class UserViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    

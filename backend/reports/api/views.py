@@ -10,6 +10,7 @@ from operations.models import Operation
 from warehouse.models import InventoryRecord
 from finance.models import Income, Expense
 from directories.models import WorkCategory, Equipment, Material
+from django.db.models import Sum, Count, F, Q
 
 
 class BaseReportView(views.APIView):
@@ -17,14 +18,46 @@ class BaseReportView(views.APIView):
     permission_classes = [permissions.IsAuthenticated, IsEmployee]
 
 
+# class CustomerChannelReportView(BaseReportView):
+#     """Отчёт об эффективности каналов привлечения клиентов."""
+#     def get(self, request):
+#         data = Customer.objects.values('source').annotate(
+#             client_count=Count('id'),
+#             order_count=Count('orders'),
+#         )
+#         return Response(data)
+
 class CustomerChannelReportView(BaseReportView):
     """Отчёт об эффективности каналов привлечения клиентов."""
     def get(self, request):
+        from django.db.models import Sum, Count, F, Q
+        from orders.models import Order
+
+        # Общая сумма всех заказов для процентов
+        total_sum = Order.objects.aggregate(total=Sum(F('quantity') * F('price_per_unit')))['total'] or 0
+        total_orders = Order.objects.count()
+
+        # Группировка по источникам клиентов
         data = Customer.objects.values('source').annotate(
-            client_count=Count('id'),
-            order_count=Count('orders'),
+            client_count=Count('id', distinct=True),
+            order_count=Count('orders', distinct=True),
+            total_sum=Sum(F('orders__quantity') * F('orders__price_per_unit')),
         )
-        return Response(data)
+
+        result = []
+        for item in data:
+            order_count = item['order_count'] or 0
+            total_sum_item = item['total_sum'] or 0
+            result.append({
+                'source': item['source'],
+                'client_count': item['client_count'],
+                'order_count': order_count,
+                'total_sum': float(total_sum_item),
+                'order_percent': round(order_count / total_orders * 100, 1) if total_orders > 0 else 0,
+                'sum_percent': round(float(total_sum_item) / float(total_sum) * 100, 1) if total_sum > 0 else 0,
+            })
+
+        return Response(result)
 
 
 class OrderProfitabilityReportView(BaseReportView):

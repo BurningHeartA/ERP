@@ -96,68 +96,39 @@ class DirectoriesModule(QWidget):
 
         self.load_directory()
 
+    # def load_directory(self):
+    #     self.table.setSortingEnabled(False)
+    #     self.table.clear()
+    #     self.table.setRowCount(0)
+    #     self.table.setColumnCount(0)
+    #     endpoint = self.directory_combo.currentData()
+    #     self.current_endpoint = endpoint
+    #     resp = self.api.get(endpoint + "/")
+    #     if resp.status_code == 200:
+    #         self.current_data = resp.json() if isinstance(resp.json(), list) else resp.json().get('results', [])
+    #         self.populate_table()
+    #     else:
+    #         self.current_data = []
+    #         self.populate_table()
+    #         QMessageBox.warning(self, "Ошибка", f"Не удалось загрузить данные: {resp.status_code}")
     def load_directory(self):
-        self.table.setSortingEnabled(False)
-        self.table.clear()
-        self.table.setRowCount(0)
-        self.table.setColumnCount(0)
         endpoint = self.directory_combo.currentData()
         self.current_endpoint = endpoint
         resp = self.api.get(endpoint + "/")
         if resp.status_code == 200:
             self.current_data = resp.json() if isinstance(resp.json(), list) else resp.json().get('results', [])
-            self.populate_table()
+            # Берём только те колонки, которые есть в данных
+            if self.current_data:
+                available_keys = set(self.current_data[0].keys())
+                filtered_columns = {k: v for k, v in self.COLUMN_NAMES.items() if k in available_keys}
+            else:
+                filtered_columns = self.COLUMN_NAMES
+            populate_table(self.table, self.current_data, filtered_columns)
         else:
             self.current_data = []
-            self.populate_table()
+            populate_table(self.table, [], {})
             QMessageBox.warning(self, "Ошибка", f"Не удалось загрузить данные: {resp.status_code}")
-
-    # def populate_table(self):
-    #     if not self.current_data:
-    #         self.table.setRowCount(0)
-    #         self.table.setColumnCount(1)
-    #         self.table.setHorizontalHeaderLabels(["Нет данных"])
-    #         return
-
-    #     self.table.setSortingEnabled(False)  # отключаем на время заполнения
-
-    #     sample = self.current_data[0]
-    #     columns = [k for k in sample.keys() if k != 'id']
-    #     headers = [self.COLUMN_NAMES.get(c, c) for c in columns]
-    #     self.table.setColumnCount(len(columns))
-    #     self.table.setHorizontalHeaderLabels(headers)
-    #     self.table.setRowCount(len(self.current_data))
-
-    #     for i, item in enumerate(self.current_data):
-    #         for j, col in enumerate(columns):
-    #             value = item.get(col, "")
-    #             table_item = QTableWidgetItem()
-                
-    #             # Пытаемся преобразовать в число для сортировки
-    #             numeric_value = self._try_parse_number(value)
-    #             if numeric_value is not None:
-    #                 table_item.setData(Qt.DisplayRole, numeric_value)
-    #             else:
-    #                 table_item.setText(str(value))
-                
-    #             self.table.setItem(i, j, table_item)
-
-    #     self.table.setSortingEnabled(True)
-    #     self.table.resizeColumnsToContents()
-
-    # def _try_parse_number(self, value):
-    #     """Пробует преобразовать значение в int или float. None если не число."""
-    #     if value is None or value == "":
-    #         return None
-    #     try:
-    #         # Пробуем int
-    #         if '.' not in str(value) and 'e' not in str(value).lower():
-    #             return int(value)
-    #         # Пробуем float
-    #         return float(value)
-    #     except (ValueError, TypeError):
-    #         return None
-
+    
     def populate_table(self):
         populate_table(self.table, self.current_data, self.COLUMN_NAMES)
 

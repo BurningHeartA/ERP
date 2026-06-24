@@ -56,6 +56,9 @@ class APIClient:
 
     def put(self, endpoint, data):
         return self._request(requests.put, endpoint, json=data)
+    
+    def patch(self, endpoint, data):
+        return self._request(requests.patch, endpoint, json=data)
 
     def delete(self, endpoint):
         return self._request(requests.delete, endpoint)

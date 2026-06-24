@@ -10,7 +10,18 @@ class EmployeeViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsDirector]
 
 
+# class EmployeeCompetenceViewSet(viewsets.ModelViewSet):
+#     queryset = EmployeeCompetence.objects.all()
+#     serializer_class = EmployeeCompetenceSerializer
+#     permission_classes = [permissions.IsAuthenticated, IsDirector]
+
 class EmployeeCompetenceViewSet(viewsets.ModelViewSet):
-    queryset = EmployeeCompetence.objects.all()
     serializer_class = EmployeeCompetenceSerializer
     permission_classes = [permissions.IsAuthenticated, IsDirector]
+
+    def get_queryset(self):
+        qs = EmployeeCompetence.objects.all()
+        employee_id = self.request.query_params.get('employee')
+        if employee_id:
+            qs = qs.filter(employee_id=employee_id)
+        return qs
