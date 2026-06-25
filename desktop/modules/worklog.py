@@ -1,11 +1,19 @@
+# from PyQt5.QtWidgets import (
+#     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+#     QTableWidget, QTableWidgetItem, QHeaderView, QDialog,
+#     QFormLayout, QLineEdit, QComboBox, QDateEdit,
+#     QDoubleSpinBox, QTimeEdit, QMessageBox
+# )
+
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTableWidget, QTableWidgetItem, QHeaderView, QDialog,
-    QFormLayout, QLineEdit, QComboBox, QDateEdit,
-    QDoubleSpinBox, QTimeEdit, QMessageBox
+    QFormLayout, QComboBox, QDateEdit, QTimeEdit, QLineEdit,
+    QDoubleSpinBox, QMessageBox
 )
+
 from PyQt5.QtCore import Qt, QDate, QTime
-from widgets import populate_table
+from widgets import populate_table, save_report
 
 
 
@@ -23,7 +31,60 @@ class WorkLogModule(QWidget):
         super().__init__()
         self.api = api_client
         self.current_data = []
+        self.employees = []
+        self.categories = []
+        self.orders_list = []
         self.init_ui()
+
+    # def init_ui(self):
+    #     layout = QVBoxLayout(self)
+    #     layout.setContentsMargins(16, 16, 16, 16)
+
+    #     title = QLabel("Табель работ")
+    #     title.setStyleSheet("font-size: 18px; font-weight: bold;")
+    #     layout.addWidget(title)
+
+    #     btn_layout = QHBoxLayout()
+    #     btn_add = QPushButton("+ Добавить смену")
+    #     btn_add.clicked.connect(self.add_shift)
+    #     btn_edit = QPushButton("Редактировать")
+    #     btn_edit.clicked.connect(self.edit_shift)
+    #     btn_delete = QPushButton("Удалить")
+    #     btn_delete.clicked.connect(self.delete_shift)
+    #     btn_layout.addWidget(btn_add)
+    #     btn_layout.addWidget(btn_edit)
+    #     btn_layout.addWidget(btn_delete)
+    #     btn_layout.addStretch()
+    #     layout.addLayout(btn_layout)
+
+    #     self.table = QTableWidget()
+    #     self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+    #     self.table.setSelectionBehavior(QTableWidget.SelectRows)
+    #     self.table.horizontalHeader().setStretchLastSection(True)
+    #     layout.addWidget(self.table)
+
+    #     self.load_data()
+
+    # def load_data(self):
+    #     resp = self.api.get("work-logs/")
+    #     if resp.status_code == 200:
+    #         raw = resp.json() if isinstance(resp.json(), list) else resp.json().get('results', [])
+    #         allowed = set(self.COLUMN_NAMES.keys()) | {'id'}
+    #         self.current_data = []
+    #         for item in raw:
+    #             # item['entries_count'] = len(item.get('entries', []))
+    #             if 'entries' in item:
+    #                 item['entries_count'] = len(item['entries'])
+    #             else:
+    #                 item['entries_count'] = item.get('entries_count', 0)
+
+    #             item['employee_name'] = item.get('employee_name', '')
+    #             filtered = {k: v for k, v in item.items() if k in allowed}
+    #             self.current_data.append(filtered)
+    #         populate_table(self.table, self.current_data, self.COLUMN_NAMES)
+    #     else:
+    #         QMessageBox.warning(self, "Ошибка", f"Не удалось загрузить: {resp.status_code}")
+
 
     def init_ui(self):
         layout = QVBoxLayout(self)
@@ -40,10 +101,14 @@ class WorkLogModule(QWidget):
         btn_edit.clicked.connect(self.edit_shift)
         btn_delete = QPushButton("Удалить")
         btn_delete.clicked.connect(self.delete_shift)
+        btn_categories = QPushButton("Категории работ")
+        btn_categories.clicked.connect(self.show_categories_report)
+
         btn_layout.addWidget(btn_add)
         btn_layout.addWidget(btn_edit)
         btn_layout.addWidget(btn_delete)
         btn_layout.addStretch()
+        btn_layout.addWidget(btn_categories)
         layout.addLayout(btn_layout)
 
         self.table = QTableWidget()
@@ -52,7 +117,21 @@ class WorkLogModule(QWidget):
         self.table.horizontalHeader().setStretchLastSection(True)
         layout.addWidget(self.table)
 
+        self._load_dictionaries()
         self.load_data()
+
+    def _load_dictionaries(self):
+        resp = self.api.get("employees/")
+        if resp.status_code == 200:
+            self.employees = resp.json() if isinstance(resp.json(), list) else resp.json().get('results', [])
+
+        resp = self.api.get("work-categories/")
+        if resp.status_code == 200:
+            self.categories = resp.json() if isinstance(resp.json(), list) else resp.json().get('results', [])
+
+        resp = self.api.get("orders/")
+        if resp.status_code == 200:
+            self.orders_list = resp.json() if isinstance(resp.json(), list) else resp.json().get('results', [])
 
     def load_data(self):
         resp = self.api.get("work-logs/")
@@ -61,18 +140,109 @@ class WorkLogModule(QWidget):
             allowed = set(self.COLUMN_NAMES.keys()) | {'id'}
             self.current_data = []
             for item in raw:
-                # item['entries_count'] = len(item.get('entries', []))
                 if 'entries' in item:
                     item['entries_count'] = len(item['entries'])
                 else:
                     item['entries_count'] = item.get('entries_count', 0)
-
                 item['employee_name'] = item.get('employee_name', '')
                 filtered = {k: v for k, v in item.items() if k in allowed}
                 self.current_data.append(filtered)
             populate_table(self.table, self.current_data, self.COLUMN_NAMES)
         else:
             QMessageBox.warning(self, "Ошибка", f"Не удалось загрузить: {resp.status_code}")
+
+
+    def _get_period(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Выберите период")
+        dialog.setMinimumWidth(500)
+        layout = QFormLayout(dialog)
+        start = QDateEdit()
+        start.setCalendarPopup(True)
+        start.setDate(QDate.currentDate().addMonths(-1))
+        end = QDateEdit()
+        end.setCalendarPopup(True)
+        end.setDate(QDate.currentDate())
+        layout.addRow("Начальная дата", start)
+        layout.addRow("Конечная дата", end)
+        btn = QPushButton("Сформировать")
+        result = {"start": None, "end": None}
+
+        def on_click():
+            result["start"] = start.date().toString('yyyy-MM-dd')
+            result["end"] = end.date().toString('yyyy-MM-dd')
+            dialog.accept()
+        btn.clicked.connect(on_click)
+        layout.addRow(btn)
+        dialog.exec_()
+        return result["start"], result["end"]
+
+
+    def show_categories_report(self):
+        start_date, end_date = self._get_period()
+        if not start_date:
+            return
+
+        resp = self.api.get("work-logs/")
+        if resp.status_code != 200:
+            return
+        logs = resp.json() if isinstance(resp.json(), list) else resp.json().get('results', [])
+
+        # Собираем все записи работ за период
+        from collections import defaultdict
+        cat_hours = defaultdict(float)
+        total_hours = 0.0
+
+        for log in logs:
+            if not (start_date <= log.get('shift_date', '') <= end_date):
+                continue
+            entries = log.get('entries', [])
+            for e in entries:
+                dur = float(e.get('duration_hours', 0) or 0)
+                cat_name = e.get('work_category_name', 'Неизвестно')
+                cat_hours[cat_name] += dur
+                total_hours += dur
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Категории работ")
+        dialog.setMinimumSize(500, 300)
+        layout = QVBoxLayout(dialog)
+        table = QTableWidget()
+        table.setEditTriggers(QTableWidget.NoEditTriggers)
+        table.setColumnCount(4)
+        table.setHorizontalHeaderLabels(["Категория", "Работ", "Часов", "% времени"])
+        table.horizontalHeader().setStretchLastSection(True)
+
+        # Считаем количество работ
+        cat_count = defaultdict(int)
+        for log in logs:
+            if not (start_date <= log.get('shift_date', '') <= end_date):
+                continue
+            for e in log.get('entries', []):
+                cat_name = e.get('work_category_name', 'Неизвестно')
+                cat_count[cat_name] += 1
+
+        table.setRowCount(len(cat_hours))
+        for i, (name, hours) in enumerate(sorted(cat_hours.items())):
+            table.setItem(i, 0, QTableWidgetItem(name))
+            table.setItem(i, 1, QTableWidgetItem(str(cat_count.get(name, 0))))
+            table.setItem(i, 2, QTableWidgetItem(f"{hours:.1f}"))
+            pct = (hours / total_hours * 100) if total_hours > 0 else 0
+            table.setItem(i, 3, QTableWidgetItem(f"{pct:.1f}%"))
+
+        btn_save = QPushButton("Сохранить отчёт")
+        btn_save.clicked.connect(lambda: save_report(
+            self, "Категории работ", table,
+            summary_rows=[
+                f"Период: {start_date} — {end_date}",
+                f"Суммарное рабочее время: {total_hours:.1f} ч",
+            ],
+            params={"Период": f"{start_date} — {end_date}"}
+        ))
+        layout.addWidget(table)
+        layout.addWidget(btn_save)
+        dialog.exec_()
+
 
     def get_selected_id(self):
         row = self.table.currentRow()

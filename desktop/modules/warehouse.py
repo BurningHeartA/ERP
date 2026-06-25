@@ -42,10 +42,12 @@ class WarehouseModule(QWidget):
         btn_edit.clicked.connect(self.edit_record)
         btn_delete = QPushButton("Удалить")
         btn_delete.clicked.connect(self.delete_record)
+
         btn_balance = QPushButton("Остатки")
         btn_balance.clicked.connect(self.show_balance)
         btn_material_report = QPushButton("Расход по заказу")
         btn_material_report.clicked.connect(self.show_order_materials)
+        
         btn_layout.addWidget(btn_add)
         btn_layout.addWidget(btn_edit)
         btn_layout.addWidget(btn_delete)

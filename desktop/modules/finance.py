@@ -69,6 +69,7 @@ class FinanceModule(QWidget):
         top_layout.addWidget(btn_add)
         top_layout.addWidget(btn_edit)
         top_layout.addWidget(btn_delete)
+        top_layout.addStretch()
         top_layout.addWidget(btn_report)
         layout.addLayout(top_layout)
 

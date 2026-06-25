@@ -60,7 +60,7 @@ class InventoryModule(QWidget):
         layout.addWidget(self.table)
         
         # Имитируем получение данных от бэкенда Django
-        self.load_fake_django_data()
+        # self.load_fake_django_data()
 
     def load_fake_django_data(self):
         """

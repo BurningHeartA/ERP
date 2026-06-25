@@ -2,10 +2,10 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTableWidget, QHeaderView, QDialog, QFormLayout,
     QLineEdit, QComboBox, QDateEdit, QCheckBox, QScrollArea,
-    QMessageBox
+    QMessageBox, QTableWidgetItem
 )
 from PyQt5.QtCore import Qt, QDate
-from widgets import populate_table
+from widgets import populate_table, save_report
 
 
 class EmployeesModule(QWidget):
@@ -38,10 +38,13 @@ class EmployeesModule(QWidget):
         btn_edit.clicked.connect(self.edit_employee)
         btn_delete = QPushButton("Уволить")
         btn_delete.clicked.connect(self.dismiss_employee)
+        btn_salary = QPushButton("Зарплата")
+        btn_salary.clicked.connect(self.show_salary_report)
         btn_layout.addWidget(btn_add)
         btn_layout.addWidget(btn_edit)
         btn_layout.addWidget(btn_delete)
         btn_layout.addStretch()
+        btn_layout.addWidget(btn_salary)
         layout.addLayout(btn_layout)
 
         self.table = QTableWidget()
@@ -84,6 +87,104 @@ class EmployeesModule(QWidget):
             populate_table(self.table, self.current_data, self.COLUMN_NAMES)
         else:
             QMessageBox.warning(self, "Ошибка", f"Не удалось загрузить: {resp.status_code}")
+
+
+    def show_salary_report(self):
+        emp_id = self.get_selected_id()
+        if not emp_id:
+            return
+
+        # Находим сотрудника
+        emp = next((e for e in self.current_data if e.get('id') == emp_id), None)
+        if not emp:
+            return
+
+        # Диалог выбора месяца
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Выберите период")
+        dialog.setFixedWidth(300)
+        layout = QFormLayout(dialog)
+        month_combo = QComboBox()
+        for i in range(1, 13):
+            month_combo.addItem(f"{i:02d}", i)
+        month_combo.setCurrentIndex(QDate.currentDate().month() - 1)
+        layout.addRow("Месяц", month_combo)
+        year_combo = QComboBox()
+        for y in range(2024, 2030):
+            year_combo.addItem(str(y), y)
+        year_combo.setCurrentText(str(QDate.currentDate().year()))
+        layout.addRow("Год", year_combo)
+        btn = QPushButton("Сформировать")
+        result = {"month": None, "year": None}
+        def on_click():
+            result["month"] = month_combo.currentData()
+            result["year"] = year_combo.currentData()
+            dialog.accept()
+        btn.clicked.connect(on_click)
+        layout.addRow(btn)
+        dialog.exec_()
+        
+        if not result["month"]:
+            return
+
+        month = result["month"]
+        year = result["year"]
+
+        resp = self.api.get(f"reports/salary/?employee_id={emp_id}&year={year}&month={month}")
+        if resp.status_code != 200:
+            QMessageBox.warning(self, "Ошибка", "Не удалось загрузить отчёт")
+            return
+        data = resp.json()
+
+        # Получаем детализацию по сменам
+        resp_logs = self.api.get("work-logs/")
+        shifts = []
+        total_hours = 0.0
+        if resp_logs.status_code == 200:
+            logs = resp_logs.json() if isinstance(resp_logs.json(), list) else resp_logs.json().get('results', [])
+            for log in logs:
+                if log.get('employee') == emp_id and str(year) in log.get('shift_date', '') and f"-{month:02d}-" in log.get('shift_date', ''):
+                    shift_hours = sum(float(e.get('duration_hours', 0) or 0) for e in log.get('entries', []))
+                    shifts.append((log.get('shift_date', ''), shift_hours))
+                    total_hours += shift_hours
+
+        report_dialog = QDialog(self)
+        report_dialog.setWindowTitle(f"Зарплата: {emp.get('full_name', '')}")
+        report_dialog.setMinimumSize(500, 400)
+        rl = QVBoxLayout(report_dialog)
+        table = QTableWidget()
+        table.setEditTriggers(QTableWidget.NoEditTriggers)
+        table.setColumnCount(3)
+        table.setHorizontalHeaderLabels(["Дата", "Часов", "% от месяца"])
+        table.horizontalHeader().setStretchLastSection(True)
+        table.setRowCount(len(shifts))
+        for i, (date_str, hours) in enumerate(shifts):
+            table.setItem(i, 0, QTableWidgetItem(date_str))
+            table.setItem(i, 1, QTableWidgetItem(f"{hours:.1f}"))
+            pct = (hours / total_hours * 100) if total_hours > 0 else 0
+            table.setItem(i, 2, QTableWidgetItem(f"{pct:.1f}%"))
+
+        btn_save = QPushButton("Сохранить отчёт")
+        tariff = data.get('salary', 0)
+        btn_save.clicked.connect(lambda: save_report(
+            self, f"Зарплата {emp.get('full_name', '')}", table,
+            summary_rows=[
+                f"Сотрудник: {emp.get('full_name', '')}",
+                f"Должность: {emp.get('position_name', '')}",
+                f"Договор: {emp.get('contract_number', '')}",
+                f"Период: {month:02d}.{year}",
+                f"Тарифная ставка: {tariff} руб.",
+                f"Итого часов: {total_hours:.1f}",
+            ],
+            params={
+                "Сотрудник": emp.get('full_name', ''),
+                "Период": f"{month:02d}.{year}",
+            }
+        ))
+        rl.addWidget(table)
+        rl.addWidget(btn_save)
+        report_dialog.exec_()
+
 
     def get_selected_id(self):
         row = self.table.currentRow()

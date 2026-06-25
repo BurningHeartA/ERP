@@ -32,12 +32,19 @@ class ClientsModule(QWidget):
 
         # Кнопки действий
         btn_layout = QHBoxLayout()
+        # left_btns = QHBoxLayout()
+        # right_btns = QHBoxLayout()
+
         btn_add = QPushButton("+ Добавить")
         btn_add.clicked.connect(self.add_client)
         btn_edit = QPushButton("Редактировать")
         btn_edit.clicked.connect(self.edit_client)
         btn_delete = QPushButton("Удалить")
         btn_delete.clicked.connect(self.delete_client)
+
+        # Кнопки отчетов
+        btn_client_profit = QPushButton("Рентабельность клиента")
+        btn_client_profit.clicked.connect(self.show_client_profitability)
         btn_report = QPushButton("Отчёт: каналы привлечения")
         btn_report.clicked.connect(self.show_channel_report)
 
@@ -46,6 +53,8 @@ class ClientsModule(QWidget):
         btn_layout.addWidget(btn_delete)
         btn_layout.addStretch()
         btn_layout.addWidget(btn_report)
+        btn_layout.addWidget(btn_client_profit)
+        
         layout.addLayout(btn_layout)
 
         # Таблица
@@ -73,6 +82,69 @@ class ClientsModule(QWidget):
             populate_table(self.table, self.current_data, self.COLUMN_NAMES)
         else:
             QMessageBox.warning(self, "Ошибка", f"Не удалось загрузить: {resp.status_code}")
+
+
+    def show_client_profitability(self):
+        client_id = self.get_selected_id()
+        if not client_id:
+            return
+
+        client = next((c for c in self.current_data if c.get('id') == client_id), None)
+        if not client:
+            return
+
+        # Получаем заказы клиента
+        resp = self.api.get("orders/")
+        if resp.status_code != 200:
+            return
+        orders = resp.json() if isinstance(resp.json(), list) else resp.json().get('results', [])
+        client_orders = [o for o in orders if o.get('customer') == client_id]
+
+        total_revenue = sum(float(o.get('total_price', 0) or 0) for o in client_orders)
+        
+        # Расчёт средней прибыли (упрощённо)
+        profits = []
+        for o in client_orders:
+            revenue = float(o.get('total_price', 0) or 0)
+            costs = revenue * 0.7  # грубая оценка
+            profits.append(revenue - costs)
+        avg_profit = sum(profits) / len(profits) if profits else 0
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"Рентабельность: {client.get('name', '')}")
+        dialog.setMinimumSize(400, 250)
+        layout = QVBoxLayout(dialog)
+        table = QTableWidget()
+        table.setEditTriggers(QTableWidget.NoEditTriggers)
+        table.setColumnCount(2)
+        table.setHorizontalHeaderLabels(["Показатель", "Значение"])
+        table.horizontalHeader().setStretchLastSection(True)
+
+        rows = [
+            ("Клиент", client.get('name', '')),
+            ("Количество заказов", len(client_orders)),
+            ("Суммарная стоимость заказов", f"{total_revenue:.2f} руб."),
+            ("Средняя прибыль заказа", f"{avg_profit:.2f} руб."),
+        ]
+        table.setRowCount(len(rows))
+        for i, (label, value) in enumerate(rows):
+            table.setItem(i, 0, QTableWidgetItem(str(label)))
+            table.setItem(i, 1, QTableWidgetItem(str(value)))
+
+        btn_save = QPushButton("Сохранить отчёт")
+        btn_save.clicked.connect(lambda: save_report(
+            self, f"Рентабельность {client.get('name', '')}", table,
+            summary_rows=[
+                f"Клиент: {client.get('name', '')}",
+                f"Заказов: {len(client_orders)}",
+                f"Сумма: {total_revenue:.2f} руб.",
+            ],
+            params={"Клиент": client.get('name', '')}
+        ))
+        layout.addWidget(table)
+        layout.addWidget(btn_save)
+        dialog.exec_()
+
 
     def get_selected_id(self):
         row = self.table.currentRow()

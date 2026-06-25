@@ -10,5 +10,5 @@ class DashboardModule(QWidget):
         title.setProperty("class", "ModuleTitle") # Используем класс из QSS
         
         layout.addWidget(title)
-        layout.addWidget(QLabel("Здесь будут графики продаж и ключевые метрики."))
+        layout.addWidget(QLabel("Здесь пока пусто"))
         layout.addStretch()
