@@ -78,6 +78,7 @@ class MeView(views.APIView):
         is_employee = hasattr(user, 'employee')
         is_director = is_employee and user.employee.position.name == 'Директор'
         is_client = hasattr(user, 'customer')
+        customer_id = user.customer.id if hasattr(user, 'customer') else None
 
         return Response({
             'id': user.id,
@@ -88,4 +89,5 @@ class MeView(views.APIView):
             'is_employee': is_employee,
             'is_director': is_director,
             'is_client': is_client,
+            'customer_id': customer_id,
         })

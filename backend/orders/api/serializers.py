@@ -12,6 +12,7 @@ from files.models import File
 #         fields = '__all__'
 
 class RequestSerializer(serializers.ModelSerializer):
+    customer_name = serializers.CharField(source='customer.name', read_only=True)
     files = serializers.ListField(
         child=serializers.FileField(),
         write_only=True,
@@ -21,7 +22,7 @@ class RequestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Request
-        fields = ['id', 'customer', 'description', 'product_name', 'quantity',
+        fields = ['id', 'customer', 'customer_name', 'description', 'product_name', 'quantity',
                   'desired_deadline', 'status', 'files', 'files_info']
 
     def get_files_info(self, obj):
